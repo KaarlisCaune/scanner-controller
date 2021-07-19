@@ -1,0 +1,74 @@
+<!doctype html>
+<html class="no-js" lang="">
+<head>
+    <meta charset="utf-8">
+    <title>Scanner control</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <section class="container" id="app">
+        <section class="options">
+            <div class="form-group">
+                <label for="fileName">Filename prefix</label>
+                <input id="fileName" type="text" v-model="fileName">
+            </div>
+            <div class="form-group">
+                <label for="dirName">Folder</label>
+                <input id="dirName" type="text" v-model="dirName">
+            </div>
+            <div class="form-group">
+                <label for="scanRes">Resolution</label>
+                <select name="resolution" id="scanRes" v-model="scanResolution">
+                    <option v-for="resolution in scanResolutions" v-bind:value="resolution.resolution">
+                        {{ resolution.resolution }}
+                    </option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="fileType">File type</label>
+                <select name="file-type" id="fileType" v-model="fileType">
+                    <option value="tiff">tiff</option>
+                    <option value="jpeg">jpeg</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="scanDegrees">Degrees / scan</label>
+                <select name="scan-degrees" id="scanDegrees" v-model="scanDegrees">
+                    <option value="0.5">0.5</option>
+                    <option value="1.5">1.5</option>
+                    <option value="2">2</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="scanAmount">Number of scans</label>
+                <input id="scanAmount" type="number" v-model="numberOfScans" min="1" >
+            </div>
+            <div class="form-group">
+                <label for="scanDirectionLeft"><input type="radio" name="direction" value="left" id="scanDirectionLeft" v-model="direction">Rotate left</label>
+                <label for="scanDirectionRight"><input type="radio" name="direction" value="right" id="scanDirectionRight" v-model="direction">Rotate right</label>
+            </div>
+        </section>
+        <section class="actions">
+            <p><b>Estimated time:</b> <span>{{ estimatedTime.toFixed(0) | formatSeconds }}</span></p>
+            <p><b>Total degrees scanned:</b> <span id="estimatedTime">{{ totalDegreesScanned }}°</span></p>
+            <div class="button-group">
+                <button id="startScan" v-on:click="startScan">▶ Start</button>
+                <button id="stopScan" v-on:click="stopScan">❌ Stop</button>
+            </div>
+        </section>
+        <section class="status">
+            <p v-if="!scanningInProgress"><b>Nothing scanning currently</b></p>
+            <div v-if="scanningInProgress">
+                <p>Currently scanning <span id="currentScan">{{ currentScanInProgress }}</span> / <span>{{ numberOfScans }}</span></p>
+                <progress id="scanProgress" max="100" v-bind:value="scanProgress"> {{ scanProgress }}% </progress>
+                <p>Time elapsed: <b><span>{{ timeElapsed.toFixed(0) | formatSeconds }}</span></b></p>
+                <p>Time to complete: <b><span id="timeElapsed">{{ (estimatedTime - timeElapsed).toFixed(0) | formatSeconds }}</span></b></p>
+            </div>
+        </section>
+    </section>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="js/scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+* {
+    font-family: sans-serif;
+}
+
+.container {
+    display: flex;
+    margin: 2em;
+}
+
+.container section {
+    padding: 1em;
+    background: lightgray;
+    margin-right: 2em;
+}
+
+.form-group {
+    display: flex;
+    width: 300px;
+    margin-bottom: 1em;
+}
+
+.form-group label {
+    width: 50%;
+    text-align: right;
+    margin-right: 0.5em;
+}
+
+.form-group input[type="text"], .form-group select {
+    width: 50%;
+}
+
+.button-group button {
+    font-size: 1.5em;
+}
+
+.status {
+    min-width: 400px;
+}
