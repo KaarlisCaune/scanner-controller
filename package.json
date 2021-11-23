@@ -5,6 +5,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "present": "^1.0.0",
+    "serialport": "^9.2.7",
     "socket.io": "^4.1.3"
   }
 }
