@@ -156,13 +156,13 @@ void serialEvent() {
 void setStepperToSleep() {
   stepperIsSleeping = true;
   digitalWrite(sleepPin, LOW);
-  delay(1);
+  delay(10);
 }
 
 void setStepperToAwake() {
   stepperIsSleeping = false;
   digitalWrite(sleepPin, HIGH);
-  delay(1);
+  delay(10);
 }
 
 boolean isValidNumber(String str) {
