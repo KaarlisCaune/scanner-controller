@@ -1,20 +1,22 @@
+const STEPS_PER_DEGREE = 290;
+
 const present = require('present');
 const { spawn } = require("child_process");
 const express = require('express');
-const app = express();
-app.use(express.static('frontend'))
+const SerialPort = require('serialport')
 const http = require('http');
+
+const app = express();
+app.use(express.static('frontend'));
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
+let port;
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/frontend/index.html');
 });
-
-const defaultOptions = {
-
-};
 
 var timeNow = 0;
 
@@ -24,6 +26,27 @@ let currentScanNumber = 0;
 let currentOptions = {};
 let scanningInProgress = false;
 
+async function getArduinoSerialPort() {
+  return await SerialPort.list().then((ports, err) => {
+    if (err) {
+      throw new Error('Could not list ports');
+    }
+    const port = ports.find(port => port.manufacturer && port.manufacturer.includes('ino'));
+    if (port) {
+      return port.path;
+    }
+    throw new Error('No Arduino ports found');
+  })
+};
+
+getArduinoSerialPort()
+  .then((path) => {
+    port = new SerialPort(path);
+  })
+  .catch((err) => {
+    console.log('Failed to set port:', err);
+  });
+
 io.on('connection', (socket) => {
 
   // Notify client of the current status
@@ -31,13 +54,6 @@ io.on('connection', (socket) => {
   
   socket.on('startScan', (message) => {
     startScan(message);
-    // setInterval(() => {
-    //   currentScanNumber = currentScanNumber + 1;
-    //   if (currentOptions.numberOfScans >= currentScanNumber) {
-    //     notifyScanProgress(currentScanNumber);
-    //     elapsedTime = (present() - timeNow) / 1000;
-    //   }
-    // }, 2000);
   });
 
   socket.on('stopScan', () => {
@@ -94,10 +110,18 @@ function executeScan(options) {
 
 function turnPlate(degrees, direction) {
   return new Promise(resolve => {
-    setTimeout(() => {
-      console.log(degrees, direction);
-      resolve('done');
-    }, 2000);
+    const steps = degrees * STEPS_PER_DEGREE;
+
+    // Set direction
+
+    port.write(direction == 'left' ? 'ccw' : 'cw');
+
+    port.write(steps, () => {
+      port.on('data', function (data) {
+        console.log(data);
+        resolve('done');
+      });
+    });
   });
 }
 
@@ -106,8 +130,7 @@ async function runScans(options) {
     const scanningOptions = [
       `-resolution ${options.scanResolution}`,
       `-${options.fileType}`,
-      `-name ${options.fileName}_${String(i).padStart(4, '0')}`,
-      `-name ${options.fileName}`,
+      `-name ${options.fileName}_${String(i).padStart(4, '0')}`, 
       `${options.dirName}`,
     ];
     await executeScan(scanningOptions);
