@@ -17,6 +17,7 @@
 #define dirPin 3
 #define stepPin 2
 #define sleepPin 4
+#define enablePin 5
 #define stepsPerRevolution 200
 
 String inputString = "";
@@ -27,12 +28,16 @@ int stepDelayTime = 5000;
 long doneSteps = 0;
 bool motorMustBeSpinning = false;
 bool stepperIsSleeping = true;
+bool stepperIsEnabled = false;
 
 void setup() {
   pinMode(stepPin, OUTPUT);
   pinMode(dirPin, OUTPUT);
   pinMode(sleepPin, OUTPUT);
-  setStepperToSleep();
+  pinMode(enablePin, OUTPUT);
+//  setStepperToSleep();
+  setStepperToAwake();
+  disableStepper();
   inputString.reserve(200);
   Serial.begin(9600);
 }
@@ -60,6 +65,9 @@ void loop() {
     if (inputString == "fastspeed") {
       setSpeed(1500);
     };
+    if (inputString == "ultraspeed") {
+      setSpeed(500);
+    };
     if (isValidNumber(inputString)) {
       turnMotor(inputString.toInt());
     };
@@ -68,40 +76,36 @@ void loop() {
   }
 
   if (motorMustBeSpinning) {
-    if (stepperIsSleeping) {
-      setStepperToAwake();
+    if (!stepperIsEnabled) {
+      enableStepper();
     }
     goOneStep();
   } else {
-    if (!stepperIsSleeping) {
-      setStepperToSleep();
+    if (stepperIsEnabled) {
+      disableStepper();
     }
   }
 }
 
 void turnMotor(int steps) {
+  enableStepper();
   clearStepCounter();
-  Serial.println("turning motor");
-  setStepperToAwake();
   updateDirection();
 
   for (int i = 0; i < steps; i++) {
     goOneStep();
   }
 
+  disableStepper();
   notifyFinished();
 }
 
 void notifyFinished() {
   Serial.println("finished");
-  Serial.println(doneSteps);
   clearStepCounter();
-  setStepperToSleep();
 }
 
 void setSpeed(int stepperSpeed) {
-  Serial.println("setting speed");
-  Serial.println(stepperSpeed);
   stepDelayTime = stepperSpeed;
 }
 
@@ -110,7 +114,7 @@ void goOneStep() {
   delayMicroseconds(stepDelayTime);
   digitalWrite(stepPin, LOW);
   delayMicroseconds(stepDelayTime);
-  doneSteps++;
+  doneSteps = doneSteps + 1;
 }
 
 void clearStepCounter() {
@@ -118,10 +122,9 @@ void clearStepCounter() {
 }
 
 void updateDirection() {
-  if (stepperIsSleeping) {
-    setStepperToAwake();
+  if (!stepperIsEnabled) {
+    enableStepper();
   }
-  Serial.println("updating direction");
   if (ccw) {
     digitalWrite(dirPin, LOW);
   } else {
@@ -130,15 +133,12 @@ void updateDirection() {
 }
 
 void startMotor() {
-  Serial.println("starting motor");
   updateDirection();
   motorMustBeSpinning = true;
 }
 
 void stopMotor() {
-  Serial.println("stopping motor");
   motorMustBeSpinning = false;
-  Serial.println(doneSteps);
   clearStepCounter();
 }
 
@@ -162,6 +162,18 @@ void setStepperToSleep() {
 void setStepperToAwake() {
   stepperIsSleeping = false;
   digitalWrite(sleepPin, HIGH);
+  delay(10);
+}
+
+void enableStepper() {
+  stepperIsEnabled = true;
+  digitalWrite(enablePin, LOW);
+  delay(10);
+}
+
+void disableStepper() {
+  stepperIsEnabled = false;
+  digitalWrite(enablePin, HIGH);
   delay(10);
 }
 

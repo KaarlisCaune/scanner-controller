@@ -12,6 +12,9 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
 
+let Readline = SerialPort.parsers.Readline; 
+let parser = new Readline();
+
 let port;
 
 app.get('/', (req, res) => {
@@ -33,6 +36,7 @@ async function getArduinoSerialPort() {
     }
     const port = ports.find(port => port.manufacturer && port.manufacturer.includes('ino'));
     if (port) {
+      console.log(port);
       return port.path;
     }
     throw new Error('No Arduino ports found');
@@ -41,7 +45,17 @@ async function getArduinoSerialPort() {
 
 getArduinoSerialPort()
   .then((path) => {
-    port = new SerialPort(path);
+    port = new SerialPort(path, { baudRate: 9600 });
+    port.pipe(parser);
+    port.on('open', () => { 
+      console.log('Port open');
+    });
+    // port.on('data', function (data) {
+    //   console.log('port on data', data.toString('utf8'));
+    // });
+    parser.on('data', function (data) {
+      console.log('parser on data', data.toString('utf8'));
+    })
   })
   .catch((err) => {
     console.log('Failed to set port:', err);
@@ -69,7 +83,6 @@ server.listen(3000, () => {
 function startScan(options) {
   console.log('starting scan with options', options);
   timeNow = present();
-  console.log(timeNow);
   scanningInProgress = true;
   currentOptions = options;
   io.emit('scanStarted', { success: true });
@@ -103,24 +116,45 @@ function executeScan(options) {
   return new Promise(resolve => {
     const scanJob = spawn("/Users/karliscaune/scanline_build/scanline", ["-flatbed", ...options]);
     scanJob.on('close', () => {
+      console.log('done scanning!');
       resolve('done scanning');
     })
   });
 }
 
-function turnPlate(degrees, direction) {
+function updateDirection(direction) {
+  console.log('updating direction');
+  return new Promise(resolve => {
+    port.write(direction == 'left' ? 'ccw\n' : 'cw\n');
+    setTimeout(() => {
+      resolve();
+    }, 400);
+  })
+}
+
+function sendSteps(steps) {
+  return new Promise(resolve => {
+    port.write(`${steps}\n`);
+    setTimeout(() => {
+      resolve();
+    }, 400);
+  })
+}
+
+async function turnPlate(degrees, direction) {
+  console.log('turning plate with degrees', degrees, 'direction', direction);
   return new Promise(resolve => {
     const steps = degrees * STEPS_PER_DEGREE;
 
-    // Set direction
-
-    port.write(direction == 'left' ? 'ccw' : 'cw');
-
-    port.write(steps, () => {
-      port.on('data', function (data) {
-        console.log(data);
-        resolve('done');
-      });
+    updateDirection(direction).then(() => {
+      sendSteps(steps.toString()).then(() => { resolve('done') });
+      // .then(() => {
+      //   port.on('data', function (data) {
+      //     console.log('arduino is done');
+      //     port.flush((err, results) => {});
+      //     resolve('done');
+      //   });
+      // });
     });
   });
 }
@@ -133,6 +167,7 @@ async function runScans(options) {
       `-name ${options.fileName}_${String(i).padStart(4, '0')}`, 
       `${options.dirName}`,
     ];
+    console.log(scanningOptions);
     await executeScan(scanningOptions);
     notifyScanProgress(i);
     await turnPlate(options.scanDegrees, options.direction);
